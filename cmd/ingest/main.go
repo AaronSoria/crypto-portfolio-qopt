@@ -14,15 +14,15 @@ func main() {
 	provider := flag.String("provider", "coingecko", "data provider")
 	symbols := flag.String("symbols", "BTC,ETH", "comma-separated symbols")
 	vsCurrency := flag.String("vs-currency", "usd", "quote currency")
-	interval := flag.String("interval", "daily", "data interval")
+	days := flag.Int("days", 30, "number of days of data")
 	out := flag.String("out", "data/raw/market_snapshot.json", "output dataset path")
 	flag.Parse()
 
 	cfg := config.Config{
 		Provider:   *provider,
 		Symbols:    splitSymbols(*symbols),
-		VSCurrency: *vsCurrency,
-		Interval:   *interval,
+		VsCurrency: *vsCurrency,
+		Days:       *days,
 		OutputPath: *out,
 	}
 
