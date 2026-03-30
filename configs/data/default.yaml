@@ -1,0 +1,5 @@
+provider: coingecko
+symbols: [BTC, ETH, SOL]
+vs_currency: usd
+interval: daily
+lookback_days: 365

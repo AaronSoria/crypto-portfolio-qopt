@@ -1,0 +1,15 @@
+name: example_mean_variance
+seed: 42
+data_snapshot: data/snapshots/example_snapshot.json
+problem:
+  model: mean_variance_binary
+  risk_aversion: 0.5
+  budget: 3
+  max_weight: 0.5
+  long_only: true
+translator: qubo
+solver:
+  family: classical
+  name: greedy
+provider:
+  name: local_simulator

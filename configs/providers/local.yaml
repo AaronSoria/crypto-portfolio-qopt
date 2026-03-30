@@ -1,0 +1,7 @@
+name: local_simulator
+supports_circuits: true
+supports_bqm: true
+supports_cqm: false
+supports_sampling: true
+supports_hybrid: false
+supports_real_hardware: false
