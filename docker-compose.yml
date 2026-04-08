@@ -9,7 +9,16 @@ services:
       - ./configs:/app/configs
       - ./data:/app/data
       - ./results:/app/results
-    command: ["python", "scripts/run_experiment.py", "--config", "configs/experiments/example_mean_variance.yaml"]
+    command:
+      [
+        "python",
+        "scripts/run_experiment.py",
+        "--config",
+        "configs/experiments/example_mean_variance.yaml",
+        "--persist",
+        "--output-dir",
+        "results/logs"
+      ]
 
   ingest:
     build:
@@ -19,4 +28,24 @@ services:
     working_dir: /app
     volumes:
       - ./data:/app/data
-    command: ["--provider", "coingecko", "--symbols", "BTC,ETH,SOL", "--vs-currency", "usd"]
+    command:
+      [
+        "--provider",
+        "coingecko",
+        "--symbols",
+        "BTC,ETH,SOL",
+        "--vs-currency",
+        "usd",
+        "--days",
+        "30",
+        "--out",
+        "/app/data/raw/market_snapshot.json"
+      ]
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    image: crypto-portfolio-qopt-app:latest
+    working_dir: /app
+    command: ["pytest", "-q", "tests/test_benchmark_core.py", "tests/test_solver_core.py", "tests/test_optimization_core.py"]

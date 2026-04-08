@@ -1,15 +1,37 @@
-name: example_mean_variance
+experiment_name: example_mean_variance
 seed: 42
-data_snapshot: data/snapshots/example_snapshot.json
+data:
+  source: in_memory
+  snapshot_name: bootstrap_demo
 problem:
-  model: mean_variance_binary
+  type: mean_variance_binary
   risk_aversion: 0.5
-  budget: 3
-  max_weight: 0.5
-  long_only: true
-translator: qubo
+  expected_returns:
+    BTC: 0.12
+    ETH: 0.08
+    SOL: 0.10
+  covariance_matrix:
+    BTC:
+      BTC: 0.30
+      ETH: 0.10
+      SOL: 0.05
+    ETH:
+      BTC: 0.10
+      ETH: 0.25
+      SOL: 0.07
+    SOL:
+      BTC: 0.05
+      ETH: 0.07
+      SOL: 0.20
+  constraints:
+    budget: 2
+    penalty: 12.0
+translator:
+  type: qubo
 solver:
-  family: classical
-  name: greedy
+  type: greedy
+  parameters: {}
 provider:
-  name: local_simulator
+  type: local_simulator
+  parameters:
+    execution_cost: 0.0

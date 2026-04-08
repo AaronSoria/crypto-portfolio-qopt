@@ -10,6 +10,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY scripts ./scripts
@@ -19,4 +21,6 @@ COPY tests ./tests
 RUN python -m pip install --upgrade pip \
     && pip install -e .[dev]
 
-CMD ["python", "scripts/run_experiment.py", "--config", "configs/experiments/example_mean_variance.yaml"]
+RUN mkdir -p /app/results/logs /app/data/raw
+
+CMD ["python", "scripts/run_experiment.py", "--config", "configs/experiments/example_mean_variance.yaml", "--persist", "--output-dir", "results/logs"]

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from base import AbstractPortfolioProblem, ConstraintSet
+from .base import AbstractPortfolioProblem, ConstraintSet
 
 
 @dataclass(frozen=True)

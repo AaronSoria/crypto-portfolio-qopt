@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Dict, Any
 
-from qubo import QuboTranslator
-from base import ProblemTranslator
+from .qubo import QuboTranslator
+from .base import ProblemTranslator
 
 
 class IsingTranslator(ProblemTranslator):
