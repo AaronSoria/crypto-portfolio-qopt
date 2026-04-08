@@ -1,14 +1,22 @@
-from pydantic import BaseModel, Field
+from __future__ import annotations
+
+from dataclasses import dataclass, field, asdict
+from typing import Any, Dict
 
 
-class BenchmarkMetrics(BaseModel):
-    total_time_seconds: float = 0.0
+@dataclass(frozen=True)
+class BenchmarkMetrics:
+    total_runtime_seconds: float = 0.0
     compile_time_seconds: float = 0.0
-    circuit_depth: int | None = None
-    shots: int | None = None
+    solve_time_seconds: float = 0.0
+    provider_time_seconds: float = 0.0
     objective_value: float = 0.0
+    feasible: bool = False
     constraint_violation: float = 0.0
-    gap_to_classical: float | None = None
+    selected_asset_count: int = 0
     execution_cost: float = 0.0
-    repeatability_score: float | None = None
-    extra: dict = Field(default_factory=dict)
+    repeatability_score: float = 0.0
+    extra: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
