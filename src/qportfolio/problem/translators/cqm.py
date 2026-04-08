@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Dict, Any
 
 from qportfolio.problem.encodings.binary import binary_encoding_map
-from .base import ProblemTranslator
+from base import ProblemTranslator
 
 
 class CQMTranslator(ProblemTranslator):

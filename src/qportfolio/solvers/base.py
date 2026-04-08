@@ -1,26 +1,38 @@
-from abc import ABC, abstractmethod
-from pydantic import BaseModel, Field
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 
-class SolverConfig(BaseModel):
+@dataclass(frozen=True)
+class SolverConfig:
     family: str
     name: str
-    parameters: dict = Field(default_factory=dict)
+    parameters: Dict[str, Any] = field(default_factory=dict)
 
 
-class SolverResult(BaseModel):
+@dataclass(frozen=True)
+class PortfolioSolution:
+    selected_assets: List[str]
+    assignment: Dict[str, int]
+    weights: Dict[str, float]
+    objective_value: float
+    feasible: bool
+    constraint_violations: Dict[str, float] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class SolverResult:
     solver_name: str
     objective_value: float
-    feasible: bool = True
-    metadata: dict = Field(default_factory=dict)
+    feasible: bool
+    solution: PortfolioSolution
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-class AbstractSolver(ABC):
-    config: SolverConfig
+class AbstractSolver:
+    name: str = "abstract"
 
-    def __init__(self, config: SolverConfig):
-        self.config = config
-
-    @abstractmethod
     def solve(self, translated_problem: dict) -> SolverResult:
         raise NotImplementedError

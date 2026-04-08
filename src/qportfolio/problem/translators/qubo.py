@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 from qportfolio.problem.constraints.encoding import apply_binary_constraints
 from qportfolio.problem.encodings.binary import binary_encoding_map
-from .base import ProblemTranslator
+from base import ProblemTranslator
 
 
 class QuboTranslator(ProblemTranslator):
