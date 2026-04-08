@@ -7,6 +7,7 @@ from .returns import compute_log_returns
 
 
 def covariance_matrix(dataset) -> Dict[str, Dict[str, float]]:
+    """Compute the sample covariance matrix using log returns."""
     returns = compute_log_returns(dataset)
     symbols = list(returns.keys())
 
@@ -41,6 +42,7 @@ def covariance_matrix(dataset) -> Dict[str, Dict[str, float]]:
 
 
 def volatility(dataset) -> Dict[str, float]:
+    """Compute per-asset volatility as sqrt of diagonal covariance."""
     cov = covariance_matrix(dataset)
     out: Dict[str, float] = {}
 
@@ -52,6 +54,7 @@ def volatility(dataset) -> Dict[str, float]:
 
 
 def correlations(dataset) -> Dict[str, Dict[str, float]]:
+    """Compute the correlation matrix from covariance and volatility."""
     cov = covariance_matrix(dataset)
     vols = volatility(dataset)
     symbols = list(cov.keys())

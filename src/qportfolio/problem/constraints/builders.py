@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from qportfolio.problem.models.base import ConstraintSet
 
 

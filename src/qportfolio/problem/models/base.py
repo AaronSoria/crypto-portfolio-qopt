@@ -1,22 +1,26 @@
-from abc import ABC, abstractmethod
-from pydantic import BaseModel, Field
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
 
 
-class ConstraintSet(BaseModel):
-    cardinality: int | None = None
-    budget: float | None = None
-    min_weight: float | None = None
-    max_weight: float | None = None
-    turnover_limit: float | None = None
+@dataclass(frozen=True)
+class ConstraintSet:
+    budget: Optional[int] = None
+    cardinality: Optional[int] = None
+    min_weight: Optional[float] = None
+    max_weight: Optional[float] = None
+    turnover: Optional[float] = None
     long_only: bool = True
-    penalty: float = 1.0
+    penalty: float = 10.0
+    extras: Dict[str, Any] = field(default_factory=dict)
 
 
-class AbstractPortfolioProblem(BaseModel, ABC):
+@dataclass(frozen=True)
+class AbstractPortfolioProblem:
     name: str
     objective: str
-    constraints: ConstraintSet = Field(default_factory=ConstraintSet)
+    constraints: ConstraintSet
 
-    @abstractmethod
-    def to_quadratic_form(self) -> dict:
+    def to_quadratic_form(self) -> Dict[str, Any]:
         raise NotImplementedError

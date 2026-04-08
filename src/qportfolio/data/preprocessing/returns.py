@@ -5,6 +5,7 @@ from typing import Dict, List
 
 
 def compute_log_returns(dataset) -> Dict[str, List[float]]:
+    """Compute consecutive log returns per asset using dataset snapshots."""
     ordered_snapshots = sorted(dataset.snapshots, key=lambda s: s.timestamp)
     symbols = [asset.symbol.upper() for asset in dataset.assets]
     out: Dict[str, List[float]] = {symbol: [] for symbol in symbols}

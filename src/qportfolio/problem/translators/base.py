@@ -1,11 +1,10 @@
-from abc import ABC, abstractmethod
+from __future__ import annotations
 
-from qportfolio.problem.models.base import AbstractPortfolioProblem
+from typing import Any, Dict
 
 
-class ProblemTranslator(ABC):
-    target: str
+class ProblemTranslator:
+    target_type: str = "base"
 
-    @abstractmethod
-    def translate(self, problem: AbstractPortfolioProblem) -> dict:
+    def translate(self, problem) -> Dict[str, Any]:
         raise NotImplementedError

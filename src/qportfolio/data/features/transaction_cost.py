@@ -1,5 +1,9 @@
-from qportfolio.data.schemas import PortfolioDataset
+from __future__ import annotations
+from typing import Dict
 
-
-def estimate_transaction_cost(dataset: PortfolioDataset) -> dict[str, float]:
-    return {asset.symbol: dataset.transaction_cost.get(asset.symbol, 0.0) for asset in dataset.assets}
+def transaction_cost(dataset, fee_rate: float = 0.001) -> Dict[str, float]:
+    """Simple proportional transaction cost model."""
+    out: Dict[str, float] = {}
+    for asset in dataset.assets:
+        out[asset.symbol.upper()] = fee_rate
+    return out
