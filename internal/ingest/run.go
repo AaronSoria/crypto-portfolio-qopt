@@ -8,7 +8,7 @@ import (
 )
 
 func Run(cfg config.Config) (models.PortfolioDataset, error) {
-	normalizedCfg := pipeline.NormalizeConfig(cfg)
+	normalizedCfg := cfg.Normalized()
 
 	connector, records, err := pipeline.FetchRecords(normalizedCfg)
 	if err != nil {
