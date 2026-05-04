@@ -1,0 +1,56 @@
+experiment_name: pasqal_mean_variance_btc_eth_sol
+
+seed: 42
+
+data:
+  source: in_memory
+  snapshot_name: bootstrap_demo
+
+problem:
+  type: mean_variance_binary
+  risk_aversion: 0.5
+  expected_returns:
+    BTC: 0.12
+    ETH: 0.08
+    SOL: 0.10
+  covariance_matrix:
+    BTC:
+      BTC: 0.30
+      ETH: 0.10
+      SOL: 0.05
+    ETH:
+      BTC: 0.10
+      ETH: 0.25
+      SOL: 0.07
+    SOL:
+      BTC: 0.05
+      ETH: 0.07
+      SOL: 0.20
+  constraints:
+    budget: 2         # select exactly 2 assets
+    penalty: 12.0     # Lagrange multiplier for budget constraint
+
+translator:
+  type: qubo
+
+solver:
+  type: pasqal
+  parameters:
+    max_iterations: 500
+
+# Pasqal neutral-atom hardware parameters
+pasqal:
+  n_shots: 1000
+  omega_max: 25.1327       # 2π × 4 MHz  (rad/μs)
+  delta_start: -31.4159    # 2π × -5 MHz (rad/μs) — start below resonance
+  delta_end:   31.4159     # 2π × +5 MHz (rad/μs) — end above resonance
+  lattice_spacing_um: 6.0  # μm between atoms
+  blockade_radius_um: 7.0  # Rydberg blockade radius μm
+  n_time_steps: 100        # Trotter steps for NumPy simulator
+  use_pulser: true         # try Pulser SDK first, fall back to NumPy
+  cloud_token: ""          # set PASQAL_CLOUD_TOKEN env var or paste here
+
+provider:
+  type: local_simulator
+  parameters:
+    execution_cost: 0.0
