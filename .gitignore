@@ -13,3 +13,6 @@ data/snapshots/
 *.parquet
 .DS_Store
 bin/
+
+# Pasqal Cloud credentials — NEVER commit these
+.env.pasqal

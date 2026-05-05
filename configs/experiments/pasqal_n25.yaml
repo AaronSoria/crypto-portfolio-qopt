@@ -1,0 +1,27 @@
+experiment_name: pasqal_portfolio_25_assets
+seed: 42
+
+data:
+  source: json
+  path: data/raw/market_snapshot.json
+
+problem:
+  type: mean_variance_binary
+  risk_aversion: 0.5
+  constraints:
+    budget: 8        # select 8 of 25 assets (auto-calculates to n//3 if omitted)
+    penalty: 25.0
+
+solver:
+  parameters:
+    max_iterations: 1000
+
+pasqal:
+  backend: auto       # will route to pulser_cloud (if token) or sa_hybrid
+  n_shots: 3000
+  sa_maxiter: 20000
+  lattice_spacing_um: 10.5
+  blockade_radius_um: 7.0
+  use_pulser: true
+  cloud_token: ""     # set PASQAL_CLOUD_TOKEN for EMU_FREE / QPU
+  project_id: ""

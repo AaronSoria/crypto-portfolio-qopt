@@ -1,0 +1,49 @@
+experiment_name: pasqal_portfolio_10_assets
+seed: 42
+
+data:
+  source: in_memory
+
+problem:
+  type: mean_variance_binary
+  risk_aversion: 0.5
+  expected_returns:
+    BTC: 0.12
+    ETH: 0.08
+    SOL: 0.10
+    BNB: 0.09
+    ADA: 0.07
+    DOT: 0.11
+    AVAX: 0.10
+    MATIC: 0.09
+    LINK: 0.08
+    UNI: 0.07
+  covariance_matrix:
+    BTC:   {BTC: 0.30, ETH: 0.10, SOL: 0.05, BNB: 0.08, ADA: 0.06, DOT: 0.07, AVAX: 0.06, MATIC: 0.05, LINK: 0.07, UNI: 0.05}
+    ETH:   {BTC: 0.10, ETH: 0.25, SOL: 0.07, BNB: 0.09, ADA: 0.07, DOT: 0.08, AVAX: 0.07, MATIC: 0.08, LINK: 0.09, UNI: 0.08}
+    SOL:   {BTC: 0.05, ETH: 0.07, SOL: 0.20, BNB: 0.06, ADA: 0.05, DOT: 0.06, AVAX: 0.08, MATIC: 0.06, LINK: 0.05, UNI: 0.05}
+    BNB:   {BTC: 0.08, ETH: 0.09, SOL: 0.06, BNB: 0.22, ADA: 0.06, DOT: 0.07, AVAX: 0.06, MATIC: 0.07, LINK: 0.06, UNI: 0.06}
+    ADA:   {BTC: 0.06, ETH: 0.07, SOL: 0.05, BNB: 0.06, ADA: 0.18, DOT: 0.07, AVAX: 0.05, MATIC: 0.06, LINK: 0.05, UNI: 0.06}
+    DOT:   {BTC: 0.07, ETH: 0.08, SOL: 0.06, BNB: 0.07, ADA: 0.07, DOT: 0.21, AVAX: 0.07, MATIC: 0.07, LINK: 0.07, UNI: 0.06}
+    AVAX:  {BTC: 0.06, ETH: 0.07, SOL: 0.08, BNB: 0.06, ADA: 0.05, DOT: 0.07, AVAX: 0.23, MATIC: 0.07, LINK: 0.06, UNI: 0.05}
+    MATIC: {BTC: 0.05, ETH: 0.08, SOL: 0.06, BNB: 0.07, ADA: 0.06, DOT: 0.07, AVAX: 0.07, MATIC: 0.20, LINK: 0.07, UNI: 0.07}
+    LINK:  {BTC: 0.07, ETH: 0.09, SOL: 0.05, BNB: 0.06, ADA: 0.05, DOT: 0.07, AVAX: 0.06, MATIC: 0.07, LINK: 0.22, UNI: 0.07}
+    UNI:   {BTC: 0.05, ETH: 0.08, SOL: 0.05, BNB: 0.06, ADA: 0.06, DOT: 0.06, AVAX: 0.05, MATIC: 0.07, LINK: 0.07, UNI: 0.19}
+  constraints:
+    budget: 3        # select 3 of 10 assets
+    penalty: 15.0
+
+solver:
+  parameters:
+    max_iterations: 1000
+
+pasqal:
+  backend: auto
+  n_shots: 2000
+  n_time_steps: 120
+  lattice_spacing_um: 10.5
+  blockade_radius_um: 7.0
+  sa_maxiter: 15000
+  use_pulser: true
+  cloud_token: ""
+  project_id: ""
