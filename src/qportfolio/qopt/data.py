@@ -87,6 +87,11 @@ class PortfolioDataset:
                 else:
                     ret_series[s] = np.array([0.0])
 
+            # Align all series to the same length (take the most recent N returns)
+            min_len = min(len(v) for v in ret_series.values())
+            for s in ret_series:
+                ret_series[s] = ret_series[s][-min_len:]
+
             exp_ret = {s: float(np.mean(v)) for s, v in ret_series.items()}
             mat = np.array([ret_series[s] for s in symbols])
             # np.cov needs at least 2 observations; pad if needed
