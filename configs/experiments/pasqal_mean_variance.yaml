@@ -3,8 +3,8 @@ experiment_name: pasqal_mean_variance_btc_eth_sol
 seed: 42
 
 data:
-  source: in_memory
-  snapshot_name: bootstrap_demo
+  source: json                            
+  path: /app/data/raw/market_snapshot.json
 
 problem:
   type: mean_variance_binary
