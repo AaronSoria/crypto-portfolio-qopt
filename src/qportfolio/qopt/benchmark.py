@@ -14,7 +14,7 @@ import numpy as np
 from .data import PortfolioDataset
 from .problem import MeanVarianceBinaryProblem, QUBOProblem
 from .solver_classical import ClassicalSolverResult, ExactSolver, GreedySolver
-from .solver_pasqal import PasqalNeutralAtomSolver, PasqalSolverResult
+from .solver_pasqal import PasqalNeutralAtomSolver, PasqalSolverResult, OMEGA_MAX, DELTA_START, DELTA_END
 
 
 EXACT_SOLVER_MAX_N = 15   # brute-force feasible limit
@@ -84,9 +84,9 @@ def run_benchmark(config: dict, experiment_name: str = "unnamed") -> BenchmarkRe
     pasqal_solver = PasqalNeutralAtomSolver(
         n_shots             = pasqal_cfg.get("n_shots", 1000),
         backend             = pasqal_cfg.get("backend", "auto"),
-        omega_max           = pasqal_cfg.get("omega_max", 2 * 3.14159265 * 4),
-        delta_start         = pasqal_cfg.get("delta_start", 2 * 3.14159265 * -5),
-        delta_end           = pasqal_cfg.get("delta_end",   2 * 3.14159265 *  5),
+        omega_max           = pasqal_cfg.get("omega_max",   OMEGA_MAX),
+        delta_start         = pasqal_cfg.get("delta_start", DELTA_START),
+        delta_end           = pasqal_cfg.get("delta_end",   DELTA_END),
         lattice_spacing_um  = pasqal_cfg.get("lattice_spacing_um", 10.5),
         blockade_radius_um  = pasqal_cfg.get("blockade_radius_um", 7.0),
         n_time_steps        = pasqal_cfg.get("n_time_steps", 100),

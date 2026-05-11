@@ -31,10 +31,10 @@ from .credentials import PasqalCredentials
 C6_RYDBERG        = 862_690.0
 BLOCKADE_RADIUS   = 7.0
 LATTICE_SPACING   = 10.5
-OMEGA_MAX         = 2 * math.pi * 4
+OMEGA_MAX         = 2 * math.pi * 1.5  # 9.42 rad/us — 75% of AnalogDevice max_amp (12.566) to account for output modulation
 DELTA_START       = 2 * math.pi * -5
 DELTA_END         = 2 * math.pi *  5
-T_RAMP_US         = 1.0
+T_RAMP_US         = 0.5                # us — 500 ns, multiple of clock_period (4 ns)
 T_HOLD_US         = 2.0
 TOTAL_TIME_US     = 2 * T_RAMP_US + T_HOLD_US
 
@@ -173,31 +173,34 @@ def _simulate_pulser_local(
     try:
         import pulser
         from pulser import Register, Sequence
-        from pulser.devices import AnalogDevice
+        from pulser.devices import MockDevice
         from pulser.waveforms import RampWaveform, ConstantWaveform
         from pulser_simulation import QutipEmulator
 
         coords = {f"q{i}": tuple(float(v) for v in positions[i]) for i in range(len(positions))}
         reg    = Register(coords)
-        seq    = Sequence(reg, AnalogDevice)
+        seq    = Sequence(reg, MockDevice)
         seq.declare_channel("global", "rydberg_global")
 
         t_ramp_ns = int(T_RAMP_US * 1000)
         t_hold_ns = int(T_HOLD_US * 1000)
 
+        # Adiabatic ramp: delta +|end| -> 0 -> -|end|
+        # Starting with positive detuning favors ground state, ending negative
+        # favors selective excitation — produces feasible low-excitation states
         seq.add(pulser.Pulse(
             amplitude=RampWaveform(t_ramp_ns, 0, omega_max),
-            detuning=ConstantWaveform(t_ramp_ns, delta_start),
+            detuning=ConstantWaveform(t_ramp_ns, delta_end),
             phase=0,
         ), "global")
         seq.add(pulser.Pulse(
             amplitude=ConstantWaveform(t_hold_ns, omega_max),
-            detuning=RampWaveform(t_hold_ns, delta_start, delta_end),
+            detuning=RampWaveform(t_hold_ns, delta_end, delta_start),
             phase=0,
         ), "global")
         seq.add(pulser.Pulse(
             amplitude=RampWaveform(t_ramp_ns, omega_max, 0),
-            detuning=ConstantWaveform(t_ramp_ns, delta_end),
+            detuning=ConstantWaveform(t_ramp_ns, delta_start),
             phase=0,
         ), "global")
 
@@ -241,31 +244,32 @@ def _simulate_pulser_cloud(
     try:
         import pulser
         from pulser import Register, Sequence
-        from pulser.devices import AnalogDevice
+        from pulser.devices import MockDevice
         from pulser.waveforms import RampWaveform, ConstantWaveform
         from pasqal_cloud import SDK, EmulatorType, BaseConfig
 
         coords = {f"q{i}": tuple(float(v) for v in positions[i]) for i in range(len(positions))}
         reg    = Register(coords)
-        seq    = Sequence(reg, AnalogDevice)
+        seq    = Sequence(reg, MockDevice)
         seq.declare_channel("global", "rydberg_global")
 
         t_ramp_ns = int(T_RAMP_US * 1000)
         t_hold_ns = int(T_HOLD_US * 1000)
 
+        # Adiabatic ramp: delta +|end| -> 0 -> -|end|
         seq.add(pulser.Pulse(
             amplitude=RampWaveform(t_ramp_ns, 0, omega_max),
-            detuning=ConstantWaveform(t_ramp_ns, delta_start),
+            detuning=ConstantWaveform(t_ramp_ns, delta_end),
             phase=0,
         ), "global")
         seq.add(pulser.Pulse(
             amplitude=ConstantWaveform(t_hold_ns, omega_max),
-            detuning=RampWaveform(t_hold_ns, delta_start, delta_end),
+            detuning=RampWaveform(t_hold_ns, delta_end, delta_start),
             phase=0,
         ), "global")
         seq.add(pulser.Pulse(
             amplitude=RampWaveform(t_ramp_ns, omega_max, 0),
-            detuning=ConstantWaveform(t_ramp_ns, delta_end),
+            detuning=ConstantWaveform(t_ramp_ns, delta_start),
             phase=0,
         ), "global")
 
@@ -278,7 +282,7 @@ def _simulate_pulser_cloud(
         batch = sdk.create_batch(
             serialized_sequence=seq.to_abstract_repr(),
             jobs=[{"runs": n_shots}],
-            emulator=EmulatorType.EMU_FREE,
+            device_type=EmulatorType.EMU_FREE,
             configuration=BaseConfig(),
         )
         print(f"  [pasqal_cloud] job submitted  batch_id={batch.id}")
@@ -299,7 +303,7 @@ def _simulate_pulser_cloud(
             warnings.warn("[pasqal_cloud] timeout waiting for results")
             return None
 
-        raw = batch.jobs[0].result
+        raw = batch.ordered_jobs[0].result
         return {k: int(v) for k, v in raw.items()} if isinstance(raw, dict) else None
 
     except ImportError as exc:
