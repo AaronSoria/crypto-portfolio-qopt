@@ -3,5 +3,7 @@ scipy>=1.12
 pyyaml>=6.0
 pytest>=8.0
 pytest-cov
+qubo-solver
 pulser>=0.20
+pulser-pasqal
 pasqal-cloud>=0.10

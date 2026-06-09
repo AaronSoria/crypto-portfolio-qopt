@@ -1,0 +1,22 @@
+experiment_name: pasqal_test_10_assets
+
+seed: 42
+
+data:
+  source: json
+  path: data/raw/market_snapshot_n10.json   # BTC ETH BNB SOL XRP USDC ADA AVAX DOGE TRX
+
+problem:
+  type: mean_variance_binary
+  risk_aversion: 0.5
+  constraints:
+    budget: 3       # seleccionar 3 de 10
+    penalty: 15.0
+
+solver:
+  parameters:
+    max_iterations: 500
+
+pasqal:
+  use_qubo_solver: true  # usa qubo-solver oficial PASQAL
+  n_shots: 2000          # n=10 -> EmuFreeBackendV2 (EMU_FREE, exacto)

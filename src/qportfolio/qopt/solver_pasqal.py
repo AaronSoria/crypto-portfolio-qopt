@@ -217,9 +217,15 @@ def _simulate_pulser_local(
 
 
 # ---------------------------------------------------------------------------
-# Pasqal Cloud EMU_FREE  (n <= 100)
+# Pasqal Cloud  (n <= 100)
 # Credentials loaded from .env.pasqal via PasqalCredentials
+#
+# Emulator routing by qubit count:
+#   n <= 20   ->  EMU_FREE  (exact state-vector, fast)
+#   n <= 100  ->  EMU_TN    (tensor-network, handles 80-85 qubits)
 # ---------------------------------------------------------------------------
+
+EMU_FREE_MAX_QUBITS = 20   # exact state-vector limit on Pasqal Cloud
 
 def _simulate_pulser_cloud(
     positions: np.ndarray,
@@ -229,10 +235,11 @@ def _simulate_pulser_cloud(
     delta_end: float,
     creds: PasqalCredentials,
     poll_interval: float = 5.0,
-    timeout: float = 300.0,
+    timeout: float = 600.0,
 ) -> Optional[Dict[str, int]]:
     """
-    Submit job to Pasqal Cloud EMU_FREE emulator.
+    Submit job to Pasqal Cloud.
+    Routes to EMU_FREE for n<=20 (exact) or EMU_TN for n>20 (tensor network).
     Credentials come from .env.pasqal (username, password, project_id).
     """
     try:
@@ -273,7 +280,10 @@ def _simulate_pulser_cloud(
             phase=0,
         ), "global")
 
+        n = len(positions)
+        emu_type = EmulatorType.EMU_FREE if n <= EMU_FREE_MAX_QUBITS else EmulatorType.EMU_TN
         print(f"  [pasqal_cloud] connecting as {creds.username} ...")
+        print(f"  [pasqal_cloud] n={n} qubits  emulator={emu_type.value}")
         sdk = SDK(
             username=creds.username,
             password=creds.password,
@@ -282,7 +292,7 @@ def _simulate_pulser_cloud(
         batch = sdk.create_batch(
             serialized_sequence=seq.to_abstract_repr(),
             jobs=[{"runs": n_shots}],
-            device_type=EmulatorType.EMU_FREE,
+            device_type=emu_type,
             configuration=BaseConfig(),
         )
         print(f"  [pasqal_cloud] job submitted  batch_id={batch.id}")

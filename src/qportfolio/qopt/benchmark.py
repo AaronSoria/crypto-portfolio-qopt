@@ -15,6 +15,8 @@ from .data import PortfolioDataset
 from .problem import MeanVarianceBinaryProblem, QUBOProblem
 from .solver_classical import ClassicalSolverResult, ExactSolver, GreedySolver
 from .solver_pasqal import PasqalNeutralAtomSolver, PasqalSolverResult, OMEGA_MAX, DELTA_START, DELTA_END
+from .solver_qubo import solve_with_qubo_solver, QUBOSolverResult
+from .credentials import PasqalCredentials
 
 
 EXACT_SOLVER_MAX_N = 15   # brute-force feasible limit
@@ -80,23 +82,35 @@ def run_benchmark(config: dict, experiment_name: str = "unnamed") -> BenchmarkRe
     ).solve(qubo)
     greedy_time = time.perf_counter() - t0
 
-    # 6. Pasqal solver
-    pasqal_solver = PasqalNeutralAtomSolver(
-        n_shots             = pasqal_cfg.get("n_shots", 1000),
-        backend             = pasqal_cfg.get("backend", "auto"),
-        omega_max           = pasqal_cfg.get("omega_max",   OMEGA_MAX),
-        delta_start         = pasqal_cfg.get("delta_start", DELTA_START),
-        delta_end           = pasqal_cfg.get("delta_end",   DELTA_END),
-        lattice_spacing_um  = pasqal_cfg.get("lattice_spacing_um", 10.5),
-        blockade_radius_um  = pasqal_cfg.get("blockade_radius_um", 7.0),
-        n_time_steps        = pasqal_cfg.get("n_time_steps", 100),
-        sa_maxiter          = pasqal_cfg.get("sa_maxiter", 10_000),
-        seed                = config.get("seed", 42),
-        use_pulser          = pasqal_cfg.get("use_pulser", True),
-        cloud_token         = pasqal_cfg.get("cloud_token", ""),
-        project_id          = pasqal_cfg.get("project_id", ""),
-    )
-    pasqal_res = pasqal_solver.solve(qubo)
+    # 6. Quantum solver  —  qubo-solver (oficial PASQAL) o legacy Pulser
+    use_qubo_solver = pasqal_cfg.get("use_qubo_solver", True)
+
+    if use_qubo_solver:
+        # --- qubo-solver oficial (EmuFreeBackendV2 / EmuMPSBackend) ---
+        creds = PasqalCredentials.load()
+        pasqal_res = solve_with_qubo_solver(
+            qubo    = qubo,
+            creds   = creds,
+            n_shots = pasqal_cfg.get("n_shots", 1000),
+        )
+    else:
+        # --- Legacy: solver Pulser manual ---
+        pasqal_solver = PasqalNeutralAtomSolver(
+            n_shots             = pasqal_cfg.get("n_shots", 1000),
+            backend             = pasqal_cfg.get("backend", "auto"),
+            omega_max           = pasqal_cfg.get("omega_max",   OMEGA_MAX),
+            delta_start         = pasqal_cfg.get("delta_start", DELTA_START),
+            delta_end           = pasqal_cfg.get("delta_end",   DELTA_END),
+            lattice_spacing_um  = pasqal_cfg.get("lattice_spacing_um", 10.5),
+            blockade_radius_um  = pasqal_cfg.get("blockade_radius_um", 7.0),
+            n_time_steps        = pasqal_cfg.get("n_time_steps", 100),
+            sa_maxiter          = pasqal_cfg.get("sa_maxiter", 10_000),
+            seed                = config.get("seed", 42),
+            use_pulser          = pasqal_cfg.get("use_pulser", True),
+            cloud_token         = pasqal_cfg.get("cloud_token", ""),
+            project_id          = pasqal_cfg.get("project_id", ""),
+        )
+        pasqal_res = pasqal_solver.solve(qubo)
 
     # 7. Gaps
     opt_energy = exact_result.best_energy if exact_result else None

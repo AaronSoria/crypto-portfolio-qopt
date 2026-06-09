@@ -1,0 +1,22 @@
+experiment_name: pasqal_test_3_assets
+
+seed: 42
+
+data:
+  source: json
+  path: data/raw/market_snapshot.json   # BTC, ETH, SOL
+
+problem:
+  type: mean_variance_binary
+  risk_aversion: 0.5
+  constraints:
+    budget: 1       # seleccionar 1 de 3
+    penalty: 10.0
+
+solver:
+  parameters:
+    max_iterations: 500
+
+pasqal:
+  use_qubo_solver: true  # usa qubo-solver oficial PASQAL
+  n_shots: 1000          # n=3 -> EmuFreeBackendV2 (EMU_FREE, exacto)

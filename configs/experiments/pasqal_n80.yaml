@@ -1,0 +1,23 @@
+experiment_name: pasqal_portfolio_80_assets
+
+seed: 42
+
+data:
+  source: json
+  path: data/raw/market_snapshot_n80.json
+
+problem:
+  type: mean_variance_binary
+  risk_aversion: 0.5
+  constraints:
+    budget: 20        # select 20 of 80 assets  (n/4 — reasonable diversification)
+    penalty: 80.0     # ~n * 1.0 — strong enough to enforce cardinality
+
+solver:
+  parameters:
+    max_iterations: 1000
+
+pasqal:
+  use_qubo_solver: true  # usa qubo-solver oficial PASQAL
+  n_shots: 3000          # n=80 -> EmuMPSBackend (EMU_MPS, tensor network GPU, 60-100 qubits)
+  # Credentials cargadas automáticamente desde .env.pasqal

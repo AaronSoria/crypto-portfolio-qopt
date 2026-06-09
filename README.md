@@ -2,31 +2,29 @@
 
 Quantum portfolio optimisation for crypto assets using Pasqal neutral-atom hardware.
 
-Ingests real market data from CoinGecko (Go), formulates a Markowitz mean-variance QUBO, and solves it with a Rydberg atom pulse sequence on Pasqal Cloud — with automatic fallback to local simulation.
+Ingests real market data from CoinGecko (Go), formulates a Markowitz mean-variance QUBO, and solves it via [`qubo-solver`](https://docs.pasqal.com/applicationsolvingtools/qubo/) — PASQAL's official solver library — submitted to Pasqal Cloud.
 
 ---
 
 ## Architecture
 
 ```
-ingest (Go)          data.py              problem.py           solver_pasqal.py
-CoinGecko API   →   PortfolioDataset  →  QUBO n×n         →  Rydberg pulse sequence
-market_snapshot      mu, Sigma            Markowitz              Pasqal Cloud EMU_FREE
-     .json           covariance           penalty budget         or numpy_rydberg
-                                                                 or sa_hybrid
+ingest (Go)          data.py              problem.py           solver_qubo.py
+CoinGecko API   →   PortfolioDataset  →  QUBO n×n         →  qubo-solver (PASQAL)
+market_snapshot      mu, Sigma            Markowitz              EmuFreeBackendV2 (n≤20)
+     .json           covariance           penalty budget         EmuMPSBackend    (n≤80)
                                               ↓
                                          benchmark.py  →  results/logs/*.json
                                          exact / greedy / Pasqal comparison
 ```
 
-**Backend routing** (automatic by problem size):
+**Backend routing** (automático por tamaño):
 
-| n assets | Backend | Requirement |
-|----------|---------|-------------|
-| ≤ 20 | `numpy_rydberg` | none — always available |
-| ≤ 100 | `pulser_local` | `pip install pulser pulser-simulation` |
-| ≤ 100 | `pulser_cloud` | Pasqal Cloud account + `.env.pasqal` |
-| any n | `sa_hybrid` | none — scipy fallback |
+| n activos (= qubits) | Backend | Device | Notas |
+|----------------------|---------|--------|-------|
+| ≤ 20 | `EmuFreeBackendV2` (EMU_FREE) | `DigitalAnalogDevice` | Estado-vector exacto |
+| 21 – 80 | `EmuMPSBackend` (EMU_MPS) | `AnalogDevice` | Tensor network GPU, embedding greedy |
+| > 80 | ❌ no soportado | — | Excede el límite de átomos del hardware |
 
 ---
 
@@ -138,28 +136,114 @@ gap vs optimal: +0.000000
 
 ---
 
-## Scaling to n assets
+## Límite de átomos — cómo no exceder los 80 qubits
 
-Three experiment configs are included:
+> **Regla clave:** el número de activos en el dataset = número de qubits.
+> El hardware de PASQAL soporta un máximo de **80 átomos**.
 
-| Config | Assets | Backend |
-|--------|--------|---------|
-| `pasqal_mean_variance.yaml` | 3 (BTC, ETH, SOL) — real market data | `pulser_cloud` / `numpy_rydberg` |
-| `pasqal_n10.yaml` | 10 assets — in-memory | `pulser_cloud` / `sa_hybrid` |
-| `pasqal_n25.yaml` | 25 assets — JSON data | `pulser_cloud` / `sa_hybrid` |
+### Los dos parámetros que controlan el tamaño
 
-Run any config:
+```yaml
+# En configs/experiments/tu_experimento.yaml
 
-```bash
-docker compose run --rm ingest   # fetch fresh market data first (for json source)
+data:
+  path: data/raw/market_snapshot_n80.json  # ← número de activos en el JSON = n qubits
 
-docker compose run --rm app python scripts/run_experiment.py \
-  --config configs/experiments/pasqal_n10.yaml \
-  --persist \
-  --output-dir results/logs
+problem:
+  constraints:
+    budget: 20    # ← cuántos activos SELECCIONAR (no afecta los qubits, solo la restricción)
+    penalty: 80.0 # ← recomendado: penalty ≈ n  (mantiene off-diagonal ≥ 0 para el solver cuántico)
 ```
 
-To add your own assets, edit the `symbols` in `docker-compose.yml` (ingest service) and the `expected_returns` / `covariance_matrix` in your experiment YAML.
+| Parámetro | Efecto en qubits | Regla |
+|-----------|-----------------|-------|
+| Activos en el dataset | **Directo** — 1 activo = 1 qubit | Mantener ≤ 80 |
+| `budget` | Ninguno — solo define cuántos seleccionar | Recomendado: `n / 4` |
+| `penalty` | Ninguno — solo fuerza la restricción | Recomendado: ≥ `n` |
+
+### Experimentos listos para usar
+
+| Config | Activos (qubits) | Budget | Backend automático | Dataset |
+|--------|-----------------|--------|--------------------|---------|
+| `pasqal_test_n3.yaml` | **3** | 1 | EMU_FREE (exacto) | `market_snapshot.json` (BTC/ETH/SOL) |
+| `pasqal_test_n10.yaml` | **10** | 3 | EMU_FREE (exacto) | `market_snapshot_n10.json` |
+| `pasqal_n80.yaml` | **80** | 20 | EMU_MPS (tensor network) | `market_snapshot_n80.json` |
+
+### Comandos de ejecución
+
+```bash
+# Siempre hacer build antes si cambiaste código
+docker compose build app
+
+# Prueba pequeña — 3 qubits, EMU_FREE
+docker compose run --rm app python scripts/run_experiment.py \
+  --config configs/experiments/pasqal_test_n3.yaml \
+  --persist --output-dir results/logs
+
+# Prueba mediana — 10 qubits, EMU_FREE
+docker compose run --rm app python scripts/run_experiment.py \
+  --config configs/experiments/pasqal_test_n10.yaml \
+  --persist --output-dir results/logs
+
+# Experimento completo — 80 qubits, EMU_MPS
+docker compose run --rm app python scripts/run_experiment.py \
+  --config configs/experiments/pasqal_n80.yaml \
+  --persist --output-dir results/logs
+```
+
+### Cómo crear un experimento propio (sin exceder 80)
+
+1. **Prepara el dataset** — el JSON debe tener ≤ 80 activos:
+
+```bash
+# Ejemplo: 40 activos personalizados
+docker compose run --rm ingest \
+  --symbols BTC,ETH,BNB,SOL,XRP,ADA,AVAX,DOGE,DOT,LINK,\
+MATIC,UNI,LTC,ATOM,XLM,ETC,HBAR,APT,ARB,NEAR,\
+INJ,ALGO,AAVE,SAND,MANA,AXS,THETA,EOS,EGLD,XTZ,\
+FLOW,CHZ,CAKE,SNX,ZEC,DASH,BAT,ENJ,CRV,COMP \
+  --days 90 --out /app/data/raw/market_snapshot_n40.json
+```
+
+2. **Crea el config YAML** (copia y ajusta `pasqal_n80.yaml`):
+
+```yaml
+experiment_name: mi_experimento_40_activos
+
+data:
+  source: json
+  path: data/raw/market_snapshot_n40.json   # 40 activos → 40 qubits ✓
+
+problem:
+  type: mean_variance_binary
+  risk_aversion: 0.5
+  constraints:
+    budget: 10      # seleccionar 10 de 40
+    penalty: 40.0   # penalty ≈ n
+
+pasqal:
+  use_qubo_solver: true
+  n_shots: 2000     # EMU_MPS se selecciona automáticamente (n=40 > 20)
+```
+
+3. **Ejecuta:**
+
+```bash
+docker compose run --rm app python scripts/run_experiment.py \
+  --config configs/experiments/mi_experimento_40_activos.yaml \
+  --persist --output-dir results/logs
+```
+
+### Qué pasa si excedes 80 átomos
+
+El solver lanzará un error de compilación antes de enviar el job a la nube:
+
+```
+CompilationError: The register's maximum radial distance went over the maximum value allowed.
+```
+
+Esto sucede porque el registro físico de átomos no cabe en el campo de visión del dispositivo.
+**Solución:** reduce el número de activos en el dataset a ≤ 80.
 
 ---
 
@@ -217,13 +301,21 @@ JSON results are saved to `results/logs/<experiment_name>.json`:
 ├── src/qportfolio/qopt/   Python quantum stack
 │   ├── data.py            PortfolioDataset — loads JSON or in-memory config
 │   ├── problem.py         MeanVarianceBinaryProblem → QUBO n×n
-│   ├── solver_pasqal.py   Rydberg solver (numpy / pulser_local / pulser_cloud / SA)
+│   ├── solver_qubo.py     Solver oficial PASQAL (qubo-solver) — EmuFree / EmuMPS
+│   ├── solver_pasqal.py   Solver legacy Pulser (fallback, use_qubo_solver: false)
 │   ├── solver_classical.py Greedy + exact brute-force (reference)
 │   ├── benchmark.py       Pipeline: data → QUBO → solve → report
 │   └── credentials.py     Loads .env.pasqal with priority chain
 ├── scripts/
 │   └── run_experiment.py  CLI entrypoint
-├── configs/experiments/   YAML experiment configs
+├── configs/experiments/
+│   ├── pasqal_test_n3.yaml    3 qubits  — EMU_FREE
+│   ├── pasqal_test_n10.yaml   10 qubits — EMU_FREE
+│   └── pasqal_n80.yaml        80 qubits — EMU_MPS  ← límite máximo
+├── data/raw/
+│   ├── market_snapshot.json       3 activos  (BTC/ETH/SOL, datos reales)
+│   ├── market_snapshot_n10.json   10 activos (sintético GBM)
+│   └── market_snapshot_n80.json   80 activos (sintético GBM)
 ├── tests/                 pytest suite
 ├── Dockerfile.python      Python app image
 ├── Dockerfile.go          Go ingest image
@@ -256,14 +348,15 @@ docker compose run --rm \
 
 ---
 
-## Hardware limits (Pasqal Fresnel QPU)
+## Hardware limits (Pasqal Fresnel QPU / EMU_MPS)
 
-| Parameter | Value |
-|-----------|-------|
-| Max atoms | 80 |
-| Max Ω (Rabi frequency) | 12.566 rad/μs (2π × 2 MHz) |
-| Max \|δ\| (detuning) | 125.66 rad/μs |
-| Max sequence duration | 6000 ns |
-| C₆ coefficient (Rb87) | 862,690 rad·μs⁻¹·μm⁶ |
+| Parámetro | Valor | Impacto en el código |
+|-----------|-------|----------------------|
+| **Máx. átomos** | **80** | Dataset debe tener ≤ 80 activos |
+| Máx. Ω (Rabi) | 12.566 rad/μs (2π × 2 MHz) | `qubo-solver` respeta esto automáticamente |
+| Máx. \|δ\| (detuning) | 125.66 rad/μs | Ídem |
+| Máx. duración secuencia | 6000 ns | Ídem |
+| C₆ (Rb87 \|70S₁/₂⟩) | 862,690 rad·μs⁻¹·μm⁶ | Constante de interacción Rydberg |
+| Radio máx. registro (Fresnel) | ~32 μm | Para n > 20 se usa `AnalogDevice` (60 μm) |
 
-The solver automatically stays within these limits. For n > 20 without Pasqal Cloud credentials, it falls back to `sa_hybrid` (scipy dual annealing).
+`qubo-solver` gestiona automáticamente el embedding de los átomos dentro de estas restricciones. El único parámetro que debes controlar es **el número de activos en el dataset (≤ 80)**.
