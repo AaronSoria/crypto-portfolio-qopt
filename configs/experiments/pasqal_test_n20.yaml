@@ -1,0 +1,22 @@
+experiment_name: pasqal_test_20_assets
+
+seed: 42
+
+data:
+  source: json
+  path: data/raw/market_snapshot_n20.json   # BTC..XLM  — 20 activos = 20 qubits
+
+problem:
+  type: mean_variance_binary
+  risk_aversion: 0.5
+  constraints:
+    budget: 5       # seleccionar 5 de 20  (n/4)
+    penalty: 20.0   # penalty = n
+
+solver:
+  parameters:
+    max_iterations: 500
+
+pasqal:
+  use_qubo_solver: true
+  n_shots: 1000     # n=20 → EmuFreeBackendV2 (EMU_FREE, exacto)  ~segundos

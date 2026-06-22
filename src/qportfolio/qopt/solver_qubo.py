@@ -5,10 +5,20 @@ Documentación: https://docs.pasqal.com/applicationsolvingtools/qubo/
 
 Backend routing por tamaño del problema:
   n <= 20   ->  EmuFreeBackendV2  (EMU_FREE, estado-vector exacto)
-              device=DigitalAnalogDevice (Fresnel QPU, radio máx ~4.58 norm.)
-  n <= 100  ->  EmuMPSBackend     (EMU_MPS, tensor network GPU, 60-100 qubits)
-              device=AnalogDevice  (radio máx ~60 μm, soporta 80-100 átomos)
-              embedding=greedy triangular (evita CompilationError por radio excedido)
+              device=DigitalAnalogDevice  embedding=TriangularEmbedder (custom)
+  21-80     ->  EmuMPSBackend     (EMU_MPS, tensor network GPU)
+              device=DigitalAnalogDevice  embedding=TriangularEmbedder (custom)
+
+  TriangularEmbedder se usa para TODOS los tamaños porque el embedding
+  por defecto (BLaDE) genera registros demasiado dispersos incluso para n ≤ 20.
+  Escala=0.77 normalizada garantiza:
+    • max_radio < límite del dispositivo para cualquier n ≤ 80
+    • min_spacing > 0.71 (5 μm / blockade_radius 7 μm)
+
+Cálculo de escala para n=80 en red 9×9:
+  max_radio a escala=1 ≈ 5.45 unidades
+  5.45 × 0.77 = 4.20 < 4.55  ✓ radio
+  0.77 > 0.71                  ✓ spacing mínimo (5.4 μm)
 
 Requiere:
   pip install qubo-solver pulser-pasqal
@@ -150,38 +160,88 @@ def solve_with_qubo_solver(
         num_shots=n_shots,
     )
 
-    # Seleccionar device y embedding según tamaño del problema:
+    # TriangularEmbedder para TODOS los tamaños.
     #
-    # n <= 20  -> DigitalAnalogDevice  (Fresnel QPU, radio máx ~4.58 norm.)
-    #             embedding por defecto (BLaDE), registro compacto.
-    #
-    # n > 20   -> AnalogDevice  (radio máx ~60 μm, soporta hasta 100 átomos)
-    #             embedding greedy en red triangular con 4*n trampas para
-    #             que el optimizador tenga espacio suficiente.
-    if n <= EMU_FREE_MAX_QUBITS:
-        config = SolverConfig(
-            use_quantum=True,
-            backend=backend,
-            device=DigitalAnalogDevice(),
+    # El embedding por defecto (BLaDE) genera registros demasiado dispersos
+    # incluso para n pequeños (falla CompilationError en n=20 con EMU_FREE).
+    # La red triangular compacta centrada (escala=0.77) garantiza para cualquier n ≤ 80:
+    #   max_radio < límite del dispositivo  ✓
+    #   min_spacing = 0.77 > 0.71 (5 μm)  ✓
+    import math as _math
+    import typing
+
+    from qoolqit import Register as _Register
+    from qubosolver.pipeline.embedder import BaseEmbedder as _BaseEmbedder
+
+    _SCALE = 0.77   # normalizado en unidades de blockade_radius
+    _cols  = _math.ceil(_math.sqrt(n))
+
+    class TriangularEmbedder(_BaseEmbedder):
+        """
+        Red triangular compacta centrada en el origen.
+        escala=0.77  ->  compacto dentro del campo de visión del dispositivo
+        para cualquier n ≤ 80.
+        """
+        @typing.no_type_check
+        def embed(self) -> _Register:
+            _n = self.instance.coefficients.shape[0]
+            positions: dict = {}
+            for k in range(_n):
+                row = k // _cols
+                col = k % _cols
+                x = col * _SCALE + (row % 2) * _SCALE / 2
+                y = row * _SCALE * _math.sqrt(3) / 2
+                positions[f"q{k}"] = (x, y)
+            # Centrar en el origen
+            cx = sum(v[0] for v in positions.values()) / _n
+            cy = sum(v[1] for v in positions.values()) / _n
+            centered = {k: (x - cx, y - cy) for k, (x, y) in positions.items()}
+            return _Register(centered)
+
+    # Calcular radio máx real (post-centrado) para logging
+    _pos = [
+        (
+            (k % _cols) * _SCALE + ((k // _cols) % 2) * _SCALE / 2,
+            (k // _cols) * _SCALE * _math.sqrt(3) / 2,
         )
-    else:
-        embedding = EmbeddingConfig(
-            embedding_method="greedy",
-            greedy_traps=max(4 * n, 200),   # suficientes trampas para n grande
-            greedy_layout="triangular",
-        )
-        config = SolverConfig(
-            use_quantum=True,
-            backend=backend,
-            embedding=embedding,
-            device=AnalogDevice(),
-        )
-        print(f"  [qubo_solver] device=AnalogDevice  embedding=greedy(traps={max(4*n,200)})")
+        for k in range(n)
+    ]
+    _cx = sum(p[0] for p in _pos) / n
+    _cy = sum(p[1] for p in _pos) / n
+    _max_r = max(_math.sqrt((x - _cx)**2 + (y - _cy)**2) for x, y in _pos)
+    print(f"  [qubo_solver] device=DigitalAnalogDevice  embedding=TriangularEmbedder"
+          f"  scale={_SCALE}  max_radius≈{_max_r:.3f}")
+
+    embedding = EmbeddingConfig(embedding_method=TriangularEmbedder)
+    config = SolverConfig(
+        use_quantum=True,
+        backend=backend,
+        embedding=embedding,
+        device=DigitalAnalogDevice(),
+    )
 
     print(f"  [qubo_solver] enviando trabajo a Pasqal Cloud ...")
     from qubosolver.solver import QuboSolver
     solver = QuboSolver(instance, config)
-    solution = solver.solve()
+
+    # Reintentar si PASQAL Cloud devuelve 503 durante el polling de resultados
+    MAX_RETRIES = 5
+    RETRY_WAIT  = 30   # segundos entre reintentos
+    solution = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            solution = solver.solve()
+            break
+        except Exception as exc:
+            is_503 = "503" in str(exc) or "Service Unavailable" in str(exc)
+            if is_503 and attempt < MAX_RETRIES:
+                print(f"  [qubo_solver] 503 Service Unavailable — reintento {attempt}/{MAX_RETRIES-1}"
+                      f" en {RETRY_WAIT}s ...")
+                time.sleep(RETRY_WAIT)
+            else:
+                raise
+    if solution is None:
+        raise RuntimeError("[qubo_solver] no se pudo obtener resultado tras todos los reintentos.")
 
     solve_time = time.perf_counter() - t0
     print(f"  [qubo_solver] completado en {solve_time:.1f}s  status={solution.solution_status}")

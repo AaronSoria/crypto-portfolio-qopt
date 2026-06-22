@@ -1,0 +1,23 @@
+experiment_name: pasqal_portfolio_30_assets
+
+seed: 42
+
+data:
+  source: json
+  path: data/raw/market_snapshot_n30.json   # BTC..VET  — 30 activos = 30 qubits
+
+problem:
+  type: mean_variance_binary
+  risk_aversion: 0.5
+  constraints:
+    budget: 8       # seleccionar 8 de 30  (n/4 aprox)
+    penalty: 30.0   # penalty = n
+
+solver:
+  parameters:
+    max_iterations: 500
+
+pasqal:
+  use_qubo_solver: true
+  n_shots: 1000     # n=30 → EmuMPSBackend (EMU_MPS, tensor network GPU)
+                    # Tiempo estimado: 20–60 min (mucho menos que n=60/80)

@@ -1,0 +1,21 @@
+experiment_name: pasqal_portfolio_60_assets
+
+seed: 42
+
+data:
+  source: json
+  path: data/raw/market_snapshot_n60.json   # 60 activos → 60 qubits
+
+problem:
+  type: mean_variance_binary
+  risk_aversion: 0.5
+  constraints:
+    budget: 15      # seleccionar 15 de 60
+    penalty: 60.0   # penalty ≈ n
+
+pasqal:
+  use_qubo_solver: true
+  n_shots: 2000     # EMU_MPS (n=60 > 20)
+  # TriangularEmbedder escala=0.77:
+  #   max_radio = 5.45 * 0.77 = 4.20 < 4.55  ✓
+  #   Memoria MPS significativamente menor que n=80
